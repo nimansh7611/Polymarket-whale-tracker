@@ -444,7 +444,7 @@
 <main>
   <div class="hero">
     <h1>Unusual activity<br>on <em>Polymarket</em></h1>
-    <p>Tracking large, early, and anomalous trades that moved before the crowd. Hypothetical returns shown if the signal was followed.</p>
+    <p>Tracking large, early, and anomalous trades that moved before the crowd.</p>
   </div>
 
   <div class="stats-row" id="stats-row">
@@ -457,12 +457,42 @@
       <div class="stat-value" id="stat-signals">—</div>
     </div>
     <div class="stat-cell">
-      <div class="stat-label">Avg implied return</div>
+      <div class="stat-label">Total 24h volume</div>
       <div class="stat-value green" id="stat-return">—</div>
     </div>
     <div class="stat-cell">
       <div class="stat-label">High-conviction</div>
       <div class="stat-value red" id="stat-high">—</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 28px; font-size: 12px; line-height: 1.8; color: var(--muted);">
+    <div style="font-family: var(--display); font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px;">How markets are scanned</div>
+    Polymarket has thousands of markets but most have little to no activity. This tool fetches the <strong style="color: var(--text); font-weight: 500;">top 100 markets sorted by 24-hour volume</strong>, then filters out anything below $5,000 in daily volume — leaving only markets with real money moving through them right now. Each market is then scored on five heuristics that can indicate unusual or informed trading activity:
+    <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px;">
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+        <span style="color: var(--accent); font-weight: 500;">Volume spike (35pts)</span><br>
+        More than 40% of a market's all-time volume traded in the last 24 hours — suggests a sudden rush of informed buyers.
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+        <span style="color: var(--accent); font-weight: 500;">Extreme price (25pts)</span><br>
+        Price above 75¢ or below 25¢ with high volume — means the market has strong conviction, not just noise.
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+        <span style="color: var(--accent); font-weight: 500;">Vol/liquidity ratio (20pts)</span><br>
+        24h volume is more than 3× the available liquidity — means large traders are moving the book.
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+        <span style="color: var(--accent); font-weight: 500;">Urgency (15pts)</span><br>
+        Market closes within 7 days — late surges in closing markets are a classic signal of informed positioning.
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+        <span style="color: var(--accent); font-weight: 500;">Absolute size (10pts)</span><br>
+        Raw 24h volume over $100K — pure scale, because small trades don't move markets.
+      </div>
+    </div>
+    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px;">
+      A high conviction score does not mean insider knowledge is confirmed. Volume spikes have many innocent explanations — breaking news, influencer posts, or coordinated retail activity. The hypothetical returns shown on each card reflect what a $1,000 position would pay out <em>if the market resolves in that direction</em>, not a prediction of what will happen. This is not financial advice.
     </div>
   </div>
 
@@ -652,10 +682,8 @@ async function fetchData() {
 function updateStats() {
   document.getElementById('stat-scanned').textContent = allSignals.length + 20;
   document.getElementById('stat-signals').textContent = allSignals.length;
-  const avgRet = allSignals.length
-    ? (allSignals.reduce((s, m) => s + parseFloat(m.returns.yesReturn), 0) / allSignals.length).toFixed(1)
-    : '—';
-  document.getElementById('stat-return').textContent = avgRet + '%';
+  const totalVol = allSignals.reduce((s, m) => s + m.vol24h, 0);
+  document.getElementById('stat-return').textContent = '$' + fmtNum(totalVol);
   document.getElementById('stat-high').textContent = allSignals.filter(m => m.level === 'high').length;
 }
 
