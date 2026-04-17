@@ -1,846 +1,449 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Whale Watch — Polymarket Insider Trade Detector</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0a0a0b;
-    --surface: #111114;
-    --surface2: #18181d;
-    --border: rgba(255,255,255,0.07);
-    --border2: rgba(255,255,255,0.13);
-    --text: #f0ede8;
-    --muted: #7a7870;
-    --accent: #e8ff47;
-    --accent2: #ff6b35;
-    --red: #ff4444;
-    --green: #39d98a;
-    --blue: #5b9cf6;
-    --mono: 'DM Mono', monospace;
-    --display: 'Syne', sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.6;
-    min-height: 100vh;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whale Watch — Polymarket</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* Scanline overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-    pointer-events: none;
-    z-index: 9999;
-  }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f9f9f8;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
 
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 20px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    background: rgba(10,10,11,0.95);
-    backdrop-filter: blur(8px);
-    z-index: 100;
-  }
-  .logo {
-    font-family: var(--display);
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .logo-icon {
-    width: 28px; height: 28px;
-    background: var(--accent);
-    border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .logo-icon svg { width: 16px; height: 16px; }
-  .logo span { color: var(--accent); }
+    nav {
+      background: #fff;
+      border-bottom: 0.5px solid #e0e0de;
+      padding: 0 1.5rem;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .status-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--green);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-  .status-text { color: var(--muted); font-size: 11px; }
+    nav span {
+      font-size: 15px;
+      font-weight: 500;
+      color: #1a1a1a;
+    }
 
-  .disclaimer {
-    background: rgba(232,255,71,0.06);
-    border-bottom: 1px solid rgba(232,255,71,0.15);
-    padding: 8px 32px;
-    font-size: 11px;
-    color: rgba(232,255,71,0.6);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+    nav .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e24b4a;
+      animation: pulse 2s ease infinite;
+    }
 
-  main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
 
-  .hero {
-    margin-bottom: 40px;
-  }
-  .hero h1 {
-    font-family: var(--display);
-    font-size: clamp(32px, 5vw, 52px);
-    font-weight: 800;
-    line-height: 1.05;
-    letter-spacing: -1.5px;
-    margin-bottom: 12px;
-  }
-  .hero h1 em {
-    font-style: normal;
-    color: var(--accent);
-  }
-  .hero p {
-    color: var(--muted);
-    font-size: 13px;
-    max-width: 560px;
-    line-height: 1.7;
-  }
+    .wrap {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 4rem;
+    }
 
-  /* Stats row */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 32px;
-  }
-  .stat-cell {
-    background: var(--surface);
-    padding: 16px 20px;
-  }
-  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-  .stat-value { font-family: var(--display); font-size: 22px; font-weight: 700; }
-  .stat-value.green { color: var(--green); }
-  .stat-value.accent { color: var(--accent); }
-  .stat-value.red { color: var(--red); }
+    .header {
+      margin-bottom: 2rem;
+    }
 
-  /* Controls */
-  .controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .filter-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.15s;
-    letter-spacing: 0.03em;
-  }
-  .filter-btn:hover { border-color: var(--border2); color: var(--text); }
-  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #0a0a0b; font-weight: 500; }
+    .header h1 {
+      font-size: 24px;
+      font-weight: 500;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
 
-  .sort-select {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-left: auto;
-  }
-  .sort-select option { background: var(--surface2); }
+    .header p {
+      font-size: 14px;
+      color: #888;
+    }
 
-  /* Refresh button */
-  .refresh-btn {
-    background: transparent;
-    border: 1px solid var(--border2);
-    color: var(--accent);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 6px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .refresh-btn:hover { background: rgba(232,255,71,0.08); }
-  .refresh-btn.loading svg { animation: spin 1s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 2rem;
+    }
 
-  /* Trade cards */
-  .trades-grid { display: flex; flex-direction: column; gap: 2px; }
+    .stat {
+      background: #fff;
+      border: 0.5px solid #e8e8e6;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
 
-  .trade-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0;
-    overflow: hidden;
-    transition: border-color 0.15s;
-    cursor: pointer;
-  }
-  .trade-card:hover { border-color: var(--border2); }
-  .trade-card.high { border-left: 3px solid var(--red); }
-  .trade-card.medium { border-left: 3px solid var(--accent2); }
-  .trade-card.low { border-left: 3px solid var(--blue); }
+    .stat-label {
+      font-size: 11px;
+      color: #999;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
 
-  .card-main {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 16px;
-    padding: 16px 18px;
-    align-items: start;
-  }
-  .card-top {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-    flex-wrap: wrap;
-  }
+    .stat-val {
+      font-size: 22px;
+      font-weight: 500;
+      color: #1a1a1a;
+    }
 
-  .badge {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  .badge-red { background: rgba(255,68,68,0.15); color: #ff8080; border: 1px solid rgba(255,68,68,0.25); }
-  .badge-orange { background: rgba(255,107,53,0.15); color: #ff9060; border: 1px solid rgba(255,107,53,0.25); }
-  .badge-blue { background: rgba(91,156,246,0.12); color: #88b8ff; border: 1px solid rgba(91,156,246,0.2); }
-  .badge-green { background: rgba(57,217,138,0.1); color: #39d98a; border: 1px solid rgba(57,217,138,0.2); }
-  .badge-gray { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+    .disclaimer {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.75;
+      padding: 14px 16px;
+      border-left: 2px solid #d0d0ce;
+      background: #fff;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 2rem;
+    }
 
-  .market-name {
-    font-family: var(--display);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    line-height: 1.3;
-    margin-bottom: 6px;
-  }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
 
-  .card-meta {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .meta-item { color: var(--muted); font-size: 11px; }
-  .meta-item span { color: var(--text); }
+    .filter-btn {
+      font-size: 13px;
+      padding: 6px 13px;
+      border-radius: 8px;
+      border: 0.5px solid #e0e0de;
+      background: transparent;
+      color: #888;
+      cursor: pointer;
+      transition: 0.15s;
+      font-family: inherit;
+    }
 
-  .card-right { text-align: right; min-width: 120px; }
-  .trade-size {
-    font-family: var(--display);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent);
-    margin-bottom: 4px;
-  }
-  .potential-return {
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 2px;
-  }
-  .return-value {
-    font-size: 14px;
-    font-weight: 500;
-  }
-  .return-value.pos { color: var(--green); }
-  .return-value.neg { color: var(--red); }
+    .filter-btn.active,
+    .filter-btn:hover {
+      background: #f0f0ee;
+      color: #1a1a1a;
+      border-color: #ccc;
+    }
 
-  .card-expanded {
-    display: none;
-    border-top: 1px solid var(--border);
-    padding: 14px 18px;
-    background: var(--surface2);
-  }
-  .card-expanded.open { display: block; }
+    .controls select {
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 0.5px solid #e0e0de;
+      background: #fff;
+      color: #1a1a1a;
+      cursor: pointer;
+      font-family: inherit;
+    }
 
-  .signal-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-  }
-  .signal-chip {
-    font-size: 10px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    color: var(--muted);
-  }
-  .signal-chip.hot { color: var(--accent2); border-color: rgba(255,107,53,0.3); background: rgba(255,107,53,0.06); }
+    .refresh-btn {
+      margin-left: auto;
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 0.5px solid #ccc;
+      background: transparent;
+      color: #1a1a1a;
+      cursor: pointer;
+      font-family: inherit;
+      transition: 0.15s;
+    }
 
-  .return-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-    margin-top: 8px;
-  }
-  .return-table th {
-    color: var(--muted);
-    text-align: left;
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--border);
-    font-weight: 400;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .return-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-  }
-  .return-table tr:last-child td { border-bottom: none; }
-  .return-table .profit { color: var(--green); }
-  .return-table .loss { color: var(--red); }
+    .refresh-btn:hover {
+      background: #f0f0ee;
+    }
 
-  .wallet-addr {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--blue);
-    background: rgba(91,156,246,0.08);
-    border: 1px solid rgba(91,156,246,0.15);
-    padding: 2px 8px;
-    border-radius: 4px;
-    display: inline-block;
-  }
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
-  /* Loading state */
-  .loading-state {
-    padding: 60px 32px;
-    text-align: center;
-    color: var(--muted);
-  }
-  .loading-bar {
-    width: 200px;
-    height: 2px;
-    background: var(--border);
-    border-radius: 2px;
-    margin: 16px auto 0;
-    overflow: hidden;
-  }
-  .loading-bar-inner {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 2px;
-    animation: load 1.5s ease-in-out infinite;
-  }
-  @keyframes load {
-    0% { width: 0%; margin-left: 0; }
-    50% { width: 60%; margin-left: 20%; }
-    100% { width: 0%; margin-left: 100%; }
-  }
+    .card {
+      background: #fff;
+      border: 0.5px solid #e8e8e6;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+    }
 
-  .error-state {
-    padding: 40px 32px;
-    text-align: center;
-    color: var(--muted);
-    border: 1px dashed var(--border);
-    border-radius: 10px;
-  }
-  .error-state h3 { color: var(--accent2); font-family: var(--display); margin-bottom: 8px; }
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
 
-  /* Score meter */
-  .score-meter {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 4px;
-  }
-  .score-bar-bg {
-    height: 3px;
-    width: 60px;
-    background: var(--border);
-    border-radius: 2px;
-  }
-  .score-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.5s ease;
-  }
-  .score-text { font-size: 10px; color: var(--muted); }
+    .card-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a1a1a;
+      line-height: 1.4;
+      flex: 1;
+    }
 
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 20px 32px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 11px;
-    margin-top: 60px;
-  }
-  footer a { color: var(--blue); text-decoration: none; }
+    .badge {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
 
-  @media (max-width: 640px) {
-    main { padding: 16px; }
-    header { padding: 16px; }
-    .stats-row { grid-template-columns: 1fr 1fr; }
-    .card-main { grid-template-columns: 1fr; }
-    .card-right { text-align: left; }
-  }
-</style>
+    .badge-high {
+      background: #FCEBEB;
+      color: #A32D2D;
+    }
+
+    .badge-med {
+      background: #FAEEDA;
+      color: #854F0B;
+    }
+
+    .card-meta {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-label {
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .meta-val {
+      font-size: 13px;
+      color: #1a1a1a;
+      font-weight: 500;
+    }
+
+    .card-footer {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 0.5px solid #efefed;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .status-msg {
+      font-size: 13px;
+      color: #999;
+      padding: 2rem 0;
+    }
+
+    .footer {
+      margin-top: 2.5rem;
+      font-size: 12px;
+      color: #bbb;
+      line-height: 1.8;
+      border-top: 0.5px solid #e8e8e6;
+      padding-top: 1rem;
+    }
+
+    .footer a {
+      color: #999;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      color: #1a1a1a;
+    }
+
+    @media (max-width: 520px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .controls { gap: 6px; }
+      .refresh-btn { margin-left: 0; }
+    }
+  </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">
-    <div class="logo-icon">
-      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2 12 C4 4, 8 2, 14 6" stroke="#0a0a0b" stroke-width="2" stroke-linecap="round"/>
-        <circle cx="14" cy="6" r="2" fill="#0a0a0b"/>
-        <path d="M2 12 L5 9 L8 10 L11 7" stroke="#0a0a0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    Whale<span>Watch</span>
-  </div>
-  <div class="header-right">
-    <div class="status-dot"></div>
-    <span class="status-text" id="last-updated">fetching data...</span>
-  </div>
-</header>
+<nav>
+  <div class="dot"></div>
+  <span>Whale Watch — Polymarket</span>
+</nav>
 
-<div class="disclaimer">
-  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a1 1 0 110 2 1 1 0 010-2zm0 3.5c.4 0 .75.34.75.75v4a.75.75 0 01-1.5 0v-4c0-.41.34-.75.75-.75z"/></svg>
-  For educational purposes only. Not financial advice. Whale activity does not confirm insider knowledge. All return figures are hypothetical.
-</div>
+<div class="wrap">
 
-<main>
-  <div class="hero">
-    <h1>Unusual activity<br>on <em>Polymarket</em></h1>
+  <div class="header">
+    <h1>Unusual activity on Polymarket</h1>
     <p>Tracking large, early, and anomalous trades that moved before the crowd.</p>
   </div>
 
-  <div class="stats-row" id="stats-row">
-    <div class="stat-cell">
+  <div class="stats">
+    <div class="stat">
       <div class="stat-label">Markets scanned</div>
-      <div class="stat-value accent" id="stat-scanned">—</div>
+      <div class="stat-val" id="s-scanned">—</div>
     </div>
-    <div class="stat-cell">
+    <div class="stat">
       <div class="stat-label">Signals detected</div>
-      <div class="stat-value" id="stat-signals">—</div>
+      <div class="stat-val" id="s-signals">—</div>
     </div>
-    <div class="stat-cell">
-      <div class="stat-label">Total 24h volume</div>
-      <div class="stat-value green" id="stat-return">—</div>
+    <div class="stat">
+      <div class="stat-label">24h volume</div>
+      <div class="stat-val" id="s-volume">—</div>
     </div>
-    <div class="stat-cell">
-      <div class="stat-label">High-conviction</div>
-      <div class="stat-value red" id="stat-high">—</div>
+    <div class="stat">
+      <div class="stat-label">High conviction</div>
+      <div class="stat-val" id="s-high">—</div>
     </div>
   </div>
 
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 28px; font-size: 12px; line-height: 1.8; color: var(--muted);">
-    <div style="font-family: var(--display); font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px;">How markets are scanned</div>
-    Polymarket has thousands of markets but most have little to no activity. This tool fetches the <strong style="color: var(--text); font-weight: 500;">top 100 markets sorted by 24-hour volume</strong>, then filters out anything below $5,000 in daily volume — leaving only markets with real money moving through them right now. Each market is then scored on five heuristics that can indicate unusual or informed trading activity:
-    <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px;">
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
-        <span style="color: var(--accent); font-weight: 500;">Volume spike (35pts)</span><br>
-        More than 40% of a market's all-time volume traded in the last 24 hours — suggests a sudden rush of informed buyers.
-      </div>
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
-        <span style="color: var(--accent); font-weight: 500;">Extreme price (25pts)</span><br>
-        Price above 75¢ or below 25¢ with high volume — means the market has strong conviction, not just noise.
-      </div>
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
-        <span style="color: var(--accent); font-weight: 500;">Vol/liquidity ratio (20pts)</span><br>
-        24h volume is more than 3× the available liquidity — means large traders are moving the book.
-      </div>
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
-        <span style="color: var(--accent); font-weight: 500;">Urgency (15pts)</span><br>
-        Market closes within 7 days — late surges in closing markets are a classic signal of informed positioning.
-      </div>
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
-        <span style="color: var(--accent); font-weight: 500;">Absolute size (10pts)</span><br>
-        Raw 24h volume over $100K — pure scale, because small trades don't move markets.
-      </div>
-    </div>
-    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px;">
-      A high conviction score does not mean insider knowledge is confirmed. Volume spikes have many innocent explanations — breaking news, influencer posts, or coordinated retail activity. The hypothetical returns shown on each card reflect what a $1,000 position would pay out <em>if the market resolves in that direction</em>, not a prediction of what will happen. This is not financial advice.
-    </div>
+  <div class="disclaimer">
+    Polymarket has thousands of markets but most have little to no activity. This tool fetches the top 100 markets sorted by 24-hour volume, then filters out anything below $5,000 in daily volume — leaving only markets with real money moving through them right now. Each market is then scored on five heuristics that can indicate unusual or informed trading activity.
   </div>
 
   <div class="controls">
     <button class="filter-btn active" onclick="setFilter('all', this)">All signals</button>
     <button class="filter-btn" onclick="setFilter('high', this)">High conviction</button>
     <button class="filter-btn" onclick="setFilter('medium', this)">Medium</button>
-    <button class="filter-btn" onclick="setFilter('resolved', this)">Resolved (with outcome)</button>
-    <select class="sort-select" id="sort-select" onchange="renderCards()">
+    <select id="sort-select" onchange="renderCards()">
       <option value="score">Sort: conviction score</option>
-      <option value="size">Sort: trade size</option>
-      <option value="return">Sort: potential return</option>
+      <option value="volume">Sort: trade size</option>
+      <option value="payout">Sort: potential return</option>
     </select>
-    <button class="refresh-btn" id="refresh-btn" onclick="fetchData()">
-      <svg id="refresh-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13.6 2.4A7 7 0 102 8.5H0l3 3 3-3H4A5 5 0 1112.1 3.9l1.5-1.5z"/></svg>
-      Refresh
-    </button>
+    <button class="refresh-btn" onclick="loadData()">Refresh</button>
   </div>
 
-  <div id="trades-container">
-    <div class="loading-state">
-      <div>Scanning Polymarket for unusual activity...</div>
-      <div class="loading-bar"><div class="loading-bar-inner"></div></div>
-    </div>
+  <div class="cards" id="cards-wrap">
+    <div class="status-msg">Scanning Polymarket for unusual activity...</div>
   </div>
-</main>
 
-<footer>
-  Data sourced from <a href="https://polymarket.com" target="_blank">Polymarket</a> public API (no key required) &bull;
-  <a href="https://github.com" target="_blank">View on GitHub</a> &bull;
-  Built for research only
-</footer>
+  <div class="footer">
+    Data sourced from <a href="https://polymarket.com" target="_blank">Polymarket</a> public API (no key required) ·
+    <a href="https://github.com/nimansh7611/Polymarket-whale-tracker" target="_blank">View on GitHub</a> ·
+    For educational purposes only · Not financial advice
+  </div>
+
+</div>
 
 <script>
-// ─── Config ───────────────────────────────────────────────────────────────────
-const POLYMARKET_API = 'https://clob.polymarket.com';
-const GAMMA_API = 'https://gamma-api.polymarket.com';
-const PROXY = 'https://corsproxy.io/?';
+  let allMarkets = [];
+  let currentFilter = 'all';
 
-let allSignals = [];
-let currentFilter = 'all';
+  async function loadData() {
+    document.getElementById('cards-wrap').innerHTML = '<div class="status-msg">Scanning Polymarket for unusual activity...</div>';
+    ['s-scanned','s-signals','s-volume','s-high'].forEach(id => document.getElementById(id).textContent = '—');
 
-// ─── Insider scoring heuristics ───────────────────────────────────────────────
-function scoreMarket(market) {
-  let score = 0;
-  const signals = [];
+    try {
+      const res = await fetch('https://gamma-api.polymarket.com/markets?limit=100&order=volume24hr&ascending=false&active=true');
+      const data = await res.json();
+      const filtered = data.filter(m => parseFloat(m.volume24hr || 0) >= 5000);
 
-  const vol = parseFloat(market.volume || market.volumeNum || 0);
-  const vol24h = parseFloat(market.volume24hr || market.volume24hrClob || 0);
-  const price = parseFloat(market.outcomePrices?.[0] || market.bestBid || 0.5);
-  const liquidity = parseFloat(market.liquidityNum || market.liquidity || 0);
-  const endDate = market.endDateIso || market.endDate || market.end_date_iso;
+      allMarkets = filtered.map(m => {
+        const vol24 = parseFloat(m.volume24hr || 0);
+        const volTotal = parseFloat(m.volume || 1);
+        const liq = parseFloat(m.liquidity || 1);
+        const price = parseFloat(m.outcomePrices ? JSON.parse(m.outcomePrices)[0] : 0.5);
+        const endDate = m.endDate ? new Date(m.endDate) : null;
+        const daysLeft = endDate ? (endDate - Date.now()) / 86400000 : 999;
 
-  // Signal 1: Huge single-day volume spike relative to total
-  if (vol > 0 && vol24h > 0) {
-    const spikePct = vol24h / vol;
-    if (spikePct > 0.4) {
-      score += 35;
-      signals.push({ label: `${(spikePct * 100).toFixed(0)}% volume in 24h`, hot: true });
-    } else if (spikePct > 0.2) {
-      score += 15;
-      signals.push({ label: `${(spikePct * 100).toFixed(0)}% vol spike`, hot: false });
-    }
-  }
+        let score = 0;
+        const flags = [];
 
-  // Signal 2: Extreme price (near 0 or near 1 with lots of action = conviction)
-  if ((price > 0.75 || price < 0.25) && vol24h > 10000) {
-    score += 25;
-    signals.push({ label: `Extreme price ${(price * 100).toFixed(0)}¢`, hot: true });
-  }
+        if (vol24 / volTotal > 0.4)                          { score += 35; flags.push('Volume spike'); }
+        if ((price > 0.75 || price < 0.25) && vol24 > 20000) { score += 25; flags.push('Extreme price'); }
+        if (vol24 / liq > 3)                                  { score += 20; flags.push('Vol/liq ratio'); }
+        if (daysLeft > 0 && daysLeft < 7)                     { score += 15; flags.push('Urgency'); }
+        if (vol24 > 100000)                                   { score += 10; flags.push('Large size'); }
 
-  // Signal 3: High volume vs liquidity ratio
-  if (liquidity > 0 && vol24h / liquidity > 3) {
-    score += 20;
-    signals.push({ label: `Vol/liquidity ${(vol24h/liquidity).toFixed(1)}x`, hot: true });
-  }
+        const conviction = score >= 50 ? 'high' : score >= 25 ? 'medium' : null;
+        const payout = price > 0 && price < 1 ? (1000 / price).toFixed(0) : '—';
 
-  // Signal 4: End date is soon (urgency)
-  if (endDate) {
-    const daysLeft = (new Date(endDate) - Date.now()) / 86400000;
-    if (daysLeft > 0 && daysLeft < 7) {
-      score += 15;
-      signals.push({ label: `Closes in ${Math.ceil(daysLeft)}d`, hot: false });
-    }
-  }
-
-  // Signal 5: Large absolute volume
-  if (vol24h > 100000) { score += 10; signals.push({ label: `$${fmtNum(vol24h)} today`, hot: false }); }
-  else if (vol24h > 50000) { score += 5; signals.push({ label: `$${fmtNum(vol24h)} today`, hot: false }); }
-
-  return { score: Math.min(score, 100), signals };
-}
-
-function convictionLevel(score) {
-  if (score >= 60) return 'high';
-  if (score >= 35) return 'medium';
-  return 'low';
-}
-
-// ─── Hypothetical return calc ─────────────────────────────────────────────────
-function calcReturns(price, tradeSize = 1000) {
-  const yesPrice = parseFloat(price) || 0.5;
-  const noPrice = 1 - yesPrice;
-
-  // If you bet on YES (following the whale)
-  const yesShares = tradeSize / yesPrice;
-  const yesPayout = yesShares * 1; // resolves $1 per share
-  const yesProfit = yesPayout - tradeSize;
-  const yesReturn = ((yesProfit / tradeSize) * 100).toFixed(1);
-
-  // If market already moved against you
-  const noShares = tradeSize / noPrice;
-  const noProfit = noShares * 1 - tradeSize;
-  const noReturn = ((noProfit / tradeSize) * 100).toFixed(1);
-
-  return { yesPrice, noPrice, tradeSize, yesProfit, yesReturn, noProfit, noReturn };
-}
-
-// ─── Fetch from Polymarket (free, no key) ─────────────────────────────────────
-async function fetchData() {
-  const btn = document.getElementById('refresh-btn');
-  const icon = document.getElementById('refresh-icon');
-  btn.classList.add('loading');
-
-  document.getElementById('trades-container').innerHTML = `
-    <div class="loading-state">
-      <div>Scanning Polymarket for unusual activity...</div>
-      <div class="loading-bar"><div class="loading-bar-inner"></div></div>
-    </div>`;
-
-  try {
-    // Gamma API is public, returns active markets with volume data
-    const url = `${GAMMA_API}/markets?active=true&closed=false&limit=100&order=volume24hr&ascending=false`;
-    const res = await fetch(PROXY + encodeURIComponent(url));
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    const markets = Array.isArray(data) ? data : (data.markets || data.data || []);
-
-    allSignals = markets
-      .filter(m => parseFloat(m.volume24hr || m.volume24hrClob || 0) > 5000)
-      .map(m => {
-        const { score, signals } = scoreMarket(m);
-        const price = parseFloat(m.outcomePrices?.[0] || 0.5);
-        const vol24h = parseFloat(m.volume24hr || m.volume24hrClob || 0);
-        const vol = parseFloat(m.volumeNum || m.volume || 0);
         return {
-          id: m.id || m.conditionId || Math.random(),
-          title: m.question || m.title || 'Unknown market',
-          slug: m.slug || '',
-          score,
-          level: convictionLevel(score),
-          signals,
-          price,
-          vol24h,
-          vol,
-          liquidity: parseFloat(m.liquidityNum || 0),
-          endDate: m.endDateIso || m.end_date_iso || m.endDate || null,
-          resolved: m.resolved || false,
-          outcome: m.resolution || null,
-          returns: calcReturns(price),
+          title: m.question || m.slug || 'Unknown market',
+          vol24, score, flags, conviction, payout, price, daysLeft
         };
-      })
-      .filter(m => m.score > 20)
-      .sort((a, b) => b.score - a.score);
+      }).filter(m => m.conviction);
 
-    updateStats();
-    renderCards();
+      const totalVol = filtered.reduce((a, m) => a + parseFloat(m.volume24hr || 0), 0);
+      document.getElementById('s-scanned').textContent = filtered.length;
+      document.getElementById('s-signals').textContent = allMarkets.length;
+      document.getElementById('s-volume').textContent = '$' + (totalVol / 1e6).toFixed(1) + 'M';
+      document.getElementById('s-high').textContent = allMarkets.filter(m => m.conviction === 'high').length;
 
-    const now = new Date();
-    document.getElementById('last-updated').textContent =
-      `Updated ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-  } catch (err) {
-    // Fallback to mock data if CORS/network fails
-    console.warn('Live fetch failed, using demo data:', err.message);
-    allSignals = getMockData();
-    updateStats();
-    renderCards();
-    document.getElementById('last-updated').textContent = 'Demo data (CORS blocked)';
+      renderCards();
+    } catch (e) {
+      document.getElementById('cards-wrap').innerHTML = '<div class="status-msg">Could not fetch data. Try refreshing.</div>';
+    }
   }
 
-  btn.classList.remove('loading');
-}
-
-// ─── Stats ────────────────────────────────────────────────────────────────────
-function updateStats() {
-  document.getElementById('stat-scanned').textContent = allSignals.length + 20;
-  document.getElementById('stat-signals').textContent = allSignals.length;
-  const totalVol = allSignals.reduce((s, m) => s + m.vol24h, 0);
-  document.getElementById('stat-return').textContent = '$' + fmtNum(totalVol);
-  document.getElementById('stat-high').textContent = allSignals.filter(m => m.level === 'high').length;
-}
-
-// ─── Render ───────────────────────────────────────────────────────────────────
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderCards();
-}
-
-function renderCards() {
-  const sortBy = document.getElementById('sort-select').value;
-  let filtered = [...allSignals];
-
-  if (currentFilter === 'high') filtered = filtered.filter(m => m.level === 'high');
-  else if (currentFilter === 'medium') filtered = filtered.filter(m => m.level === 'medium');
-  else if (currentFilter === 'resolved') filtered = filtered.filter(m => m.resolved);
-
-  if (sortBy === 'size') filtered.sort((a, b) => b.vol24h - a.vol24h);
-  else if (sortBy === 'return') filtered.sort((a, b) => parseFloat(b.returns.yesReturn) - parseFloat(a.returns.yesReturn));
-  else filtered.sort((a, b) => b.score - a.score);
-
-  const container = document.getElementById('trades-container');
-
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="error-state"><h3>No signals match this filter</h3><p>Try 'All signals' or refresh to load new data.</p></div>`;
-    return;
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderCards();
   }
 
-  container.innerHTML = `<div class="trades-grid">${filtered.map(renderCard).join('')}</div>`;
-}
+  function renderCards() {
+    const sort = document.getElementById('sort-select').value;
+    let markets = currentFilter === 'all' ? allMarkets : allMarkets.filter(m => m.conviction === currentFilter);
 
-function renderCard(m) {
-  const levelBadge = m.level === 'high'
-    ? `<span class="badge badge-red">HIGH</span>`
-    : m.level === 'medium'
-    ? `<span class="badge badge-orange">MEDIUM</span>`
-    : `<span class="badge badge-blue">LOW</span>`;
+    markets = [...markets].sort((a, b) => {
+      if (sort === 'volume') return b.vol24 - a.vol24;
+      if (sort === 'payout') return parseFloat(b.payout) - parseFloat(a.payout);
+      return b.score - a.score;
+    });
 
-  const resolvedBadge = m.resolved
-    ? `<span class="badge badge-green">RESOLVED</span>`
-    : `<span class="badge badge-gray">ACTIVE</span>`;
+    if (!markets.length) {
+      document.getElementById('cards-wrap').innerHTML = '<div class="status-msg">No signals found for this filter.</div>';
+      return;
+    }
 
-  const scoreColor = m.score >= 60 ? '#ff4444' : m.score >= 35 ? '#ff6b35' : '#5b9cf6';
-  const scoreFill = `width: ${m.score}%; background: ${scoreColor}`;
-
-  const endStr = m.endDate
-    ? `Closes ${new Date(m.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-    : '';
-
-  const retVal = parseFloat(m.returns.yesReturn);
-  const retClass = retVal > 0 ? 'pos' : 'neg';
-  const retSign = retVal > 0 ? '+' : '';
-
-  const polyLink = m.slug ? `https://polymarket.com/event/${m.slug}` : 'https://polymarket.com';
-
-  return `
-  <div class="trade-card ${m.level}" onclick="toggleCard('${m.id}')">
-    <div class="card-main">
-      <div>
+    document.getElementById('cards-wrap').innerHTML = markets.map(m => `
+      <div class="card">
         <div class="card-top">
-          ${levelBadge}
-          ${resolvedBadge}
-          <span class="badge badge-gray">Score: ${m.score}/100</span>
+          <div class="card-title">${m.title}</div>
+          <span class="badge ${m.conviction === 'high' ? 'badge-high' : 'badge-med'}">${m.conviction === 'high' ? 'High conviction' : 'Medium'}</span>
         </div>
-        <div class="market-name">${escHtml(m.title)}</div>
         <div class="card-meta">
-          <div class="meta-item">24h vol: <span>$${fmtNum(m.vol24h)}</span></div>
-          <div class="meta-item">Price YES: <span>${(m.price * 100).toFixed(0)}¢</span></div>
-          ${m.liquidity ? `<div class="meta-item">Liquidity: <span>$${fmtNum(m.liquidity)}</span></div>` : ''}
-          ${endStr ? `<div class="meta-item"><span>${endStr}</span></div>` : ''}
+          <div class="meta-item">
+            <div class="meta-label">24h volume</div>
+            <div class="meta-val">${formatVol(m.vol24)}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Score</div>
+            <div class="meta-val">${m.score} pts</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Price</div>
+            <div class="meta-val">${(m.price * 100).toFixed(0)}¢</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">$1k payout</div>
+            <div class="meta-val">$${Number(m.payout).toLocaleString()}</div>
+          </div>
+          ${m.daysLeft < 999 ? `
+          <div class="meta-item">
+            <div class="meta-label">Closes in</div>
+            <div class="meta-val">${m.daysLeft < 1 ? '<1d' : Math.round(m.daysLeft) + 'd'}</div>
+          </div>` : ''}
         </div>
-        <div class="score-meter">
-          <div class="score-bar-bg"><div class="score-bar-fill" style="${scoreFill}"></div></div>
-          <span class="score-text">conviction</span>
-        </div>
+        ${m.flags.length ? `<div class="card-footer">Signals: ${m.flags.join(' · ')}</div>` : ''}
       </div>
-      <div class="card-right">
-        <div class="trade-size">$${fmtNum(m.vol24h)}</div>
-        <div class="potential-return">if YES resolves</div>
-        <div class="return-value ${retClass}">${retSign}${m.returns.yesReturn}%</div>
-        <div style="margin-top: 8px">
-          <a href="${polyLink}" target="_blank" onclick="event.stopPropagation()" style="font-size:10px; color: var(--blue); text-decoration:none;">view market →</a>
-        </div>
-      </div>
-    </div>
-    <div class="card-expanded" id="exp-${m.id}">
-      <div style="margin-bottom: 10px; font-size: 11px; color: var(--muted);">Why this was flagged:</div>
-      <div class="signal-row">
-        ${m.signals.map(s => `<span class="signal-chip ${s.hot ? 'hot' : ''}">${escHtml(s.label)}</span>`).join('')}
-      </div>
-      <table class="return-table">
-        <thead>
-          <tr>
-            <th>Scenario</th>
-            <th>Entry price</th>
-            <th>$1,000 invested</th>
-            <th>Profit/Loss</th>
-            <th>Return %</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Bet YES (follow whale)</td>
-            <td>${(m.returns.yesPrice * 100).toFixed(1)}¢</td>
-            <td>$${fmtNum(1000 / m.returns.yesPrice)} shares</td>
-            <td class="${m.returns.yesProfit > 0 ? 'profit' : 'loss'}">$${fmtNum(m.returns.yesProfit)}</td>
-            <td class="${m.returns.yesProfit > 0 ? 'profit' : 'loss'}">${m.returns.yesReturn}%</td>
-          </tr>
-          <tr>
-            <td>Bet NO (fade whale)</td>
-            <td>${(m.returns.noPrice * 100).toFixed(1)}¢</td>
-            <td>$${fmtNum(1000 / m.returns.noPrice)} shares</td>
-            <td class="${m.returns.noProfit > 0 ? 'profit' : 'loss'}">$${fmtNum(m.returns.noProfit)}</td>
-            <td class="${m.returns.noProfit > 0 ? 'profit' : 'loss'}">${m.returns.noReturn}%</td>
-          </tr>
-        </tbody>
-      </table>
-      <div style="margin-top: 10px; font-size: 10px; color: var(--muted);">
-        Returns are hypothetical based on current price. $1,000 example only. Actual fills may differ. This is not financial advice.
-      </div>
-    </div>
-  </div>`;
-}
+    `).join('');
+  }
 
-function toggleCard(id) {
-  const el = document.getElementById(`exp-${id}`);
-  if (el) el.classList.toggle('open');
-}
+  function formatVol(v) {
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+    if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'K';
+    return '$' + v.toFixed(0);
+  }
 
-// ─── Utils ────────────────────────────────────────────────────────────────────
-function fmtNum(n) {
-  const num = parseFloat(n) || 0;
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return Math.round(num).toString();
-}
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ─── Mock/fallback data ───────────────────────────────────────────────────────
-function getMockData() {
-  return [
-    { id: 'm1', title: 'Will the Federal Reserve cut rates in June 2025?', slug: '', score: 78, level: 'high', signals: [{label:'62% volume in 24h',hot:true},{label:'Extreme price 82¢',hot:true},{label:'Vol/liquidity 4.2x',hot:true}], price: 0.82, vol24h: 342000, vol: 551000, liquidity: 81000, endDate: null, resolved: false, returns: calcReturns(0.82) },
-    { id: 'm2', title: 'Will Trump pardon more than 100 people in 2025?', slug: '', score: 65, level: 'high', signals: [{label:'48% volume in 24h',hot:true},{label:'$342K today',hot:false},{label:'Closes in 3d',hot:false}], price: 0.67, vol24h: 198000, vol: 412000, liquidity: 45000, endDate: null, resolved: false, returns: calcReturns(0.67) },
-    { id: 'm3', title: 'Will SpaceX Starship reach orbit in 2025?', slug: '', score: 54, level: 'medium', signals: [{label:'Vol/liquidity 3.1x',hot:true},{label:'Extreme price 78¢',hot:false}], price: 0.78, vol24h: 87000, vol: 280000, liquidity: 28000, endDate: null, resolved: false, returns: calcReturns(0.78) },
-    { id: 'm4', title: 'Will Elon Musk remain DOGE head through Q3 2025?', slug: '', score: 71, level: 'high', signals: [{label:'55% volume in 24h',hot:true},{label:'$198K today',hot:false},{label:'Vol/liquidity 5.1x',hot:true}], price: 0.34, vol24h: 198000, vol: 360000, liquidity: 38900, endDate: null, resolved: false, returns: calcReturns(0.34) },
-    { id: 'm5', title: 'Will the S&P 500 hit 6500 before June 2025?', slug: '', score: 42, level: 'medium', signals: [{label:'23% volume in 24h',hot:false},{label:'$89K today',hot:false}], price: 0.44, vol24h: 89000, vol: 386000, liquidity: 62000, endDate: null, resolved: false, returns: calcReturns(0.44) },
-    { id: 'm6', title: 'Will there be a US recession declared in 2025?', slug: '', score: 38, level: 'medium', signals: [{label:'21% volume in 24h',hot:false},{label:'Extreme price 22¢',hot:false}], price: 0.22, vol24h: 63000, vol: 300000, liquidity: 41000, endDate: null, resolved: false, returns: calcReturns(0.22) },
-    { id: 'm7', title: 'Will Bitcoin exceed $120K in 2025?', slug: '', score: 29, level: 'low', signals: [{label:'$71K today',hot:false}], price: 0.58, vol24h: 71000, vol: 580000, liquidity: 130000, endDate: null, resolved: false, returns: calcReturns(0.58) },
-  ];
-}
-
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-fetchData();
+  loadData();
 </script>
+
 </body>
 </html>
